@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "cryptocris_ethereum_wallet": "^1.1.0",
-    "web3": "^4.3.0"
+    "web3": "^4.5.0"
   }
 }

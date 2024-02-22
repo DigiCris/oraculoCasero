@@ -1,109 +1,103 @@
+const { Console } = require('console');
 const {Web3} = require('web3');
-const web3 = new Web3("https://rpc-mumbai.maticvigil.com");
 
-var ultimoBloqueLeido=0;
-async function main()  {
-    console.log("llamando cada 5 seg");
-    console.log(await lastBlockNumber());
-    ultimoBloqueLeido = await buscar("0x5e68c3B05f2CE3C40BE6e8634a7928F209Bbd257",ultimoBloqueLeido);
+const web3 = new Web3("https://rpc.ankr.com/polygon_mumbai");
+
+var ultimoBloqueLeido =0;
+async function main() {
+    console.log("se ejecuta cada 5s");
+    var ultimoBloque = 0;
+    await buscar();
+    console.log(ultimoBloque);
 }
 setInterval(main,5000);
 
-
-async function lastBlockNumber() {
+async function lastblockNumber() {
     var lastBlock = await web3.eth.getBlockNumber();
     return lastBlock.toString();
 }
 
-
-async function buscar(oraculoAddress,ultimoBloqueLeido) {
-
-    /// Encontramos bloquefrom y bloqueTo para realizar la lectura desde lo ultimo leido
-    var bloqueTo = await lastBlockNumber();
-    var bloqueFrom = bloqueTo -1000;
+async function buscar(ultimoBloque) {
+    ultimoBloque = await lastblockNumber(); // ultimo bloque a leer  = 20
+    BloqueTo = ultimoBloque;
+    bloqueFrom = BloqueTo - 1000;
     if(ultimoBloqueLeido>bloqueFrom) {
         bloqueFrom = ultimoBloqueLeido;
     }
-    ultimoBloqueLeido= bloqueTo;
+    ultimoBloqueLeido = BloqueTo;
 
-    var ABI= [ { "anonymous": false, "inputs": [ { "indexed": false, "internalType": "address", "name": "caller", "type": "address" }, { "indexed": false, "internalType": "bytes4", "name": "selector", "type": "bytes4" }, { "indexed": false, "internalType": "string", "name": "parser", "type": "string" }, { "indexed": false, "internalType": "string", "name": "jobId", "type": "string" }, { "indexed": false, "internalType": "string", "name": "url", "type": "string" }, { "indexed": false, "internalType": "uint256", "name": "requestId", "type": "uint256" } ], "name": "get", "type": "event" }, { "inputs": [ { "internalType": "bytes4", "name": "selector", "type": "bytes4" }, { "internalType": "string", "name": "parser", "type": "string" }, { "internalType": "string", "name": "jobId", "type": "string" }, { "internalType": "string", "name": "url", "type": "string" } ], "name": "oracle", "outputs": [ { "internalType": "uint256", "name": "requestId", "type": "uint256" } ], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "fulfill", "outputs": [], "stateMutability": "view", "type": "function" } ];
-    var oracle = new web3.eth.Contract(ABI, oraculoAddress);
-    var log = await oracle.getPastEvents('get',{fromBlock: bloqueFrom,toBlock: bloqueTo});
 
-    if(log.length>0){
-        //caller, selector, parser, jobId, url, requestId
+    var oracleAddress = "0xaC0f3216acF8a99eAF5CeCa57C8f3B676724F73e";
+    var abi = [ { "anonymous": false, "inputs": [ { "indexed": false, "internalType": "address", "name": "caller", "type": "address" }, { "indexed": false, "internalType": "bytes4", "name": "selector", "type": "bytes4" }, { "indexed": false, "internalType": "string", "name": "parser", "type": "string" }, { "indexed": false, "internalType": "string", "name": "jobID", "type": "string" }, { "indexed": false, "internalType": "string", "name": "url", "type": "string" }, { "indexed": false, "internalType": "uint256", "name": "requestId", "type": "uint256" } ], "name": "get", "type": "event" }, { "inputs": [ { "internalType": "bytes4", "name": "selector", "type": "bytes4" }, { "internalType": "string", "name": "parser", "type": "string" }, { "internalType": "string", "name": "jobID", "type": "string" }, { "internalType": "string", "name": "url", "type": "string" } ], "name": "oracle", "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "_requestId", "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ], "stateMutability": "view", "type": "function" }, { "inputs": [ { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "uint256", "name": "requestId", "type": "uint256" } ], "name": "fullfill", "outputs": [], "stateMutability": "view", "type": "function" } ];
+    var oracle = await new web3.eth.Contract(abi,oracleAddress);
+    console.log("from: "+bloqueFrom+"||  to: "+BloqueTo)
+    var log =  await oracle.getPastEvents('get', {fromBlock: bloqueFrom, toBlock: BloqueTo});
+    //console.log(log);
+
+    if(log.length>0) {
         var caller = log[0].returnValues.caller;
         var selector = log[0].returnValues.selector;
         var parser = log[0].returnValues.parser;
-        var jobId = log[0].returnValues.jobId;
+        var jobID = log[0].returnValues.jobID;
         var url = log[0].returnValues.url;
         var requestId = log[0].returnValues.requestId;
-
-        await ejecutar(caller, selector, parser, jobId, url, requestId);        
+        await ejecutar(caller,selector,parser,jobID,url,requestId);
     }
 
-
-    //console.log(caller);
+    return(ultimoBloque);
 }
 
-async function ejecutar(caller, selector, parser, jobId, url, requestId) {
-
-    // ya hice el get
+async function ejecutar(caller,selector,parser,jobID,url,requestId) {
+    // obtener la info de la API
     var data = await getRequest(url);
     //console.log(data);
 
-    // parseamos el dato
-    var parseo = ( JSON.parse(data).RAW.ETH.USD.MEDIAN ).toString();
-    //console.log(parseo);
+    // parsearla => 2955.18871363751
+    var parseo = (JSON.parse(data).RAW.ETH.USD.MEDIAN).toString()
+    console.log(parseo);
 
-    //var multiplied = web3.utils.toWei(parseo, 'eth');
-    var multiplied = web3.utils.toWei(parseo, 'ether');
-    //console.log(multiplied);// 2355.396828385150000000
+    // multiplar
+    var multiplied = web3.utils.toWei(parseo,"ether"); // parseo * 10**18
+    console.log(multiplied);
 
-    // data = selector +argumentos
-    var arg1 = web3.eth.abi.encodeParameter('uint256',multiplied); // 0x78432748324280
-    var arg2 = web3.eth.abi.encodeParameter('uint256',requestId); // 0x7313+2173821
-    var arg = arg1 + arg2; // 0x78432748324280x7313+2173821
+    //data: selector + arg1 + arg2    
+    var arg1 = web3.eth.abi.encodeParameter("uint256", multiplied);
+    var arg2 = web3.eth.abi.encodeParameter("uint256", requestId);
+    var arg = arg1+arg2; // 0x7394289020x7849374298472
     arg = arg.replace(/0x/g,"");
-    //console.log(arg);
     txData = selector + arg;
     console.log(txData);
 
-    // hacer el envío
-    /*
-    {
-        privateKey: '0x25471ace97aef3505bb4091399d9826abb2f329580dba1166fb7bfe6db043b4
-      e',
-        publicKey: '0x77963d51d3c6e28d8571b6ab1b065fcfd6466ee2282368fe216fdbc3a3930833
-      8ebb07b4f255305e0d07cc542e4cad02aa49b9d52bde1bb1f0f0f6867b87e670',
-        address: '0x6748f309a4f806A0FC34d9fD4A1C9034f45EE957'
-      }
-    */
     let Wallet = require('cryptocris_ethereum_wallet/src/index.js');
+
     //calling the creation of deterministic accounts given by a password('password') and a user(2)
     Wallet.deterministicWallet('Hola',1);
     //We print the account that was created.
     console.log(Wallet.account);
-    await send(Wallet.account.privateKey,Wallet.account.address,caller, txData);
+
+    await send(Wallet.account.privateKey,Wallet.account.address, caller, txData);
 
 }
 
+async function send(privateKey,account, caller, txData) {
 
-async function send(privateKey,account,caller, txData) {
-    
-    var stx = await web3.eth.accounts.signTransaction({
+    const nonce = await web3.eth.getTransactionCount(account);
+
+    let stx = await web3.eth.accounts.signTransaction({
         from: account,
         to: caller,
-        value : web3.utils.toWei('0','ether'),
-        gas: '300000',
-        gasPrice: web3.utils.toWei('10','gwei'),
+        value: web3.utils.toWei("0","ether"),
+        gas: '3000000',
+        gasPrice: web3.utils.toWei("10","gwei"),
+        nonce: web3.utils.toHex(nonce),
         data: txData,
     }, privateKey);
 
-    var receipt = await web3.eth.sendSignedTransaction(stx);
+    var receipt= await web3.eth.sendSignedTransaction(stx.rawTransaction);
 
     console.log(receipt.transactionHash);
 }
+
 
 const http = require('https');
 function getRequest(url) {

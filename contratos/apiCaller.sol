@@ -1,36 +1,31 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >0.7.0 <0.9.0;
+pragma solidity >0.7.0 <0.9.9;
 
-import "./oraculo.sol";
+import "oraculo.sol";
 
 contract api {
 
-    uint public _requestID;
-    uint256 public value;
+    uint256 public _requestId;
     oraculo public oracle;
+    uint256 public _value;
 
     function setOracle(address _addr) public {
         oracle = oraculo(_addr);
     }
 
-
     function askApi() external {
-        //address caller=address(this);
-    string memory url= "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD";
-    string memory jobId = "uint256";
-    string memory parser = "RAW,ETH,USD,MEDIAN";
-     bytes4 selector = this.fulfill.selector;
-
-        _requestID= oracle.oracle(selector, parser, jobId, url);
-
+        string memory url = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD";
+        string memory parser = "RAW,ETH,USD,MEDIAN";
+        bytes4 selector = this.fullfill.selector;
+        string memory jobID= "uint256";
+        _requestId= oracle.oracle(selector, parser,jobID,url);
     }
 
-
-    function fulfill(uint256 _value, uint256 reqid) public {
-        if(reqid==_requestID) {
-            value = _value;
+    function fullfill(uint256 value, uint256 requestId) public {
+        if(requestId == _requestId) {
+            _value = value;
         }
-        value = _value;
+        _value = value;
     }
 
 }
